@@ -25,7 +25,7 @@ export class SamplePipelineStack extends Stack {
     const pipeline = new CodePipeline(this, 'Pipeline', {
       pipelineName: 'DemoPipeline',
       synth: new CodeBuildStep('SynthStep', {
-        input: CodePipelineSource.codeCommit(repo, 'main'),
+        input: CodePipelineSource.codeCommit(repo, 'master'),
         installCommands: [
           'npm install -g aws-cdk'
         ],
