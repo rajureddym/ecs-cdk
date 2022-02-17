@@ -19,21 +19,16 @@ export class MyVPCStack extends cdk.Stack {
                     subnetType: ec2.SubnetType.PUBLIC,
 
                 },
-                // {
-                //     cidrMask: 24,
-                //     name: 'PublicSubnet-02',
-                //     subnetType: ec2.SubnetType.PUBLIC
-                // },
                 {
                     cidrMask: 24,
                     name: 'Private',
                     subnetType: ec2.SubnetType.PRIVATE_WITH_NAT
+                },
+                {
+                    cidrMask: 28,
+                    name: 'data',
+                    subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
                 }
-                // {
-                //     cidrMask: 24,
-                //     name: 'PrivateSubnet-02',
-                //     subnetType: ec2.SubnetType.PRIVATE_WITH_NAT
-                // }
 
             ],
             natGatewayProvider: NatInstanceProvider.gateway(),
