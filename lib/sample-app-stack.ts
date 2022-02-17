@@ -1,28 +1,41 @@
+import * as cdk from 'aws-cdk-lib';
 import { Duration, Stack, StackProps } from 'aws-cdk-lib';
 import { CodeCommitSourceAction } from 'aws-cdk-lib/aws-codepipeline-actions';
 import { Construct } from 'constructs';
 import * as codecommit from 'aws-cdk-lib/aws-codecommit';
 import { CodeBuildStep, CodePipeline, CodePipelineSource } from 'aws-cdk-lib/pipelines';
 import { MyVPCStack } from './network-vpc-stack';
+import { MyEcsStack }from './ecs-service-stack';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
 
 export class SampleAppStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const stackName = this.node.tryGetContext("stack_name") ?? "dev";
-
-    const vpcStackName = `${stackName}-vpc`;
-
-    const vpcStack = new MyVPCStack(this, vpcStackName, {
-      env: {
-        account: this.account || process.env.CDK_DEPLOY_ACCOUNT || process.env.CDK_DEFAULT_ACCOUNT,
-        region: this.region || process.env.CDK_DEPLOY_REGION || process.env.CDK_DEFAULT_REGION,
-      },
-      stackName: vpcStackName,
-    })
-
   }
 }
+
+const app = new cdk.App();
+
+const stackName = app.node.tryGetContext("stack_name") ?? "dev";
+const vpcStackName = `${stackName}-vpc`;
+
+const vpcStack = new MyVPCStack(app, 'vpc-stack', {
+  env: {
+    account: app.account || process.env.CDK_DEPLOY_ACCOUNT || process.env.CDK_DEFAULT_ACCOUNT,
+    region: app.region || process.env.CDK_DEPLOY_REGION || process.env.CDK_DEFAULT_REGION,
+  },
+  stackName: vpcStackName,
+});
+
+const ecsStackName = `${stackName}-ecs`;
+
+new MyEcsStack(app, 'ecs-stack', {
+  vpc: vpcStack.vpc,
+  stackName: ecsStackName
+});
+
+app.synth();
 
 export class SamplePipelineStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {

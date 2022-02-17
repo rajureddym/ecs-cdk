@@ -4,11 +4,11 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { NatInstanceProvider, PrivateSubnet, SubnetType, Vpc } from 'aws-cdk-lib/aws-ec2';
 
 export class MyVPCStack extends cdk.Stack {
-    static vpc: any;
+    readonly vpc: Vpc;
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
         super(scope, id, props);
 
-        const vpc = new ec2.Vpc(this, 'MyVPC', {
+        const vpc = new ec2.Vpc(this, 'vpc', {
             maxAzs: 3,
             cidr: '10.0.0.0/21',
             vpcName: 'dev-Vpc',
