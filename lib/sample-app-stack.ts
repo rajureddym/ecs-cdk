@@ -1,12 +1,10 @@
 import * as cdk from 'aws-cdk-lib';
 import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import { CodeCommitSourceAction } from 'aws-cdk-lib/aws-codepipeline-actions';
 import { Construct } from 'constructs';
 import * as codecommit from 'aws-cdk-lib/aws-codecommit';
 import { CodeBuildStep, CodePipeline, CodePipelineSource } from 'aws-cdk-lib/pipelines';
 import { MyVPCStack } from './network-vpc-stack';
 import { MyEcsStack }from './ecs-service-stack';
-import * as ec2 from 'aws-cdk-lib/aws-ec2';
 
 export class SampleAppStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -35,7 +33,6 @@ new MyEcsStack(app, 'ecs-stack', {
   stackName: ecsStackName
 });
 
-app.synth();
 
 export class SamplePipelineStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
