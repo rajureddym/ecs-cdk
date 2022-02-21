@@ -38,33 +38,4 @@ const ecsStack = new EcsClusterStack(app, 'ecs-stack', {
 });
 
 
-export class PipelineStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, props);
 
-    // creating CodeCommit repository
-    const repo = new codecommit.Repository(this, 'SampleRepo', {
-      repositoryName: "SampleRespository"
-    })
-
-    // definiting pipeline resource
-
-    const pipeline = new CodePipeline(this, 'Pipeline', {
-      pipelineName: 'DemoPipeline',
-      synth: new CodeBuildStep('SynthStep', {
-        input: CodePipelineSource.codeCommit(repo, 'master'),
-        installCommands: [
-          'npm install -g aws-cdk'
-        ],
-        commands: [
-          'npm ci',
-          'npx cdk build',
-          'npx cdk synth'
-        ]
-      }
-      )
-    });
-
-  }
-
-}
