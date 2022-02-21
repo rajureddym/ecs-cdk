@@ -4,9 +4,10 @@ import { Construct } from 'constructs';
 import * as codecommit from 'aws-cdk-lib/aws-codecommit';
 import { CodeBuildStep, CodePipeline, CodePipelineSource } from 'aws-cdk-lib/pipelines';
 import { MyVPCStack } from './network-vpc-stack';
-import { MyEcsStack }from './ecs-service-stack';
+import { EcsClusterStack }from './ecs-service-stack';
 
-export class SampleAppStack extends Stack {
+
+export class AppStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
@@ -28,13 +29,16 @@ const vpcStack = new MyVPCStack(app, 'vpc-stack', {
 
 const ecsStackName = `${stackName}-ecs`;
 
-new MyEcsStack(app, 'ecs-stack', {
-  vpc: vpcStack.vpc,
+const ecsStack = new EcsClusterStack(app, 'ecs-stack', {
+  env: {
+    account: app.account || process.env.CDK_DEPLOY_ACCOUNT || process.env.CDK_DEFAULT_ACCOUNT,
+    region: app.region || process.env.CDK_DEPLOY_REGION || process.env.CDK_DEFAULT_REGION,
+  },
   stackName: ecsStackName
 });
 
 
-export class SamplePipelineStack extends Stack {
+export class PipelineStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
