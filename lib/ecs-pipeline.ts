@@ -6,7 +6,7 @@ import * as cdk from 'aws-cdk-lib';
 import { SecretValue, StackProps } from 'aws-cdk-lib';
 import * as  EcsClusterStack from '../lib/ecs-service-stack';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
-import { LinuxBuildImage } from 'aws-cdk-lib/aws-codebuild';
+import { BuildSpec, LinuxBuildImage } from 'aws-cdk-lib/aws-codebuild';
 
 // export interface EcsPipelineStackProps extends cdk.StackProps {
 //     ecsService: ecs.BaseService;
@@ -37,6 +37,7 @@ export class PipelineStack extends cdk.Stack {
 
         // Define Build stage and it's actions
         const buildProject = new codebuild.PipelineProject(this, 'EcsBuildProject', {
+            buildSpec: codebuild.BuildSpec.fromSourceFilename('src/BuildSpec.yml'),
             environment: {
                 buildImage: LinuxBuildImage.STANDARD_3_0,
                 computeType: codebuild.ComputeType.MEDIUM,
