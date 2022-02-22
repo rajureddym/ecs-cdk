@@ -6,7 +6,8 @@ import * as cdk from 'aws-cdk-lib';
 import { SecretValue, StackProps } from 'aws-cdk-lib';
 import * as  EcsClusterStack from '../lib/ecs-service-stack';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
-import { BuildSpec, LinuxBuildImage } from 'aws-cdk-lib/aws-codebuild';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import { BuildSpec, ImagePullPrincipalType, LinuxBuildImage } from 'aws-cdk-lib/aws-codebuild';
 
 // export interface EcsPipelineStackProps extends cdk.StackProps {
 //     ecsService: ecs.BaseService;
@@ -37,7 +38,7 @@ export class PipelineStack extends cdk.Stack {
 
         // Define Build stage and it's actions
         const buildProject = new codebuild.PipelineProject(this, 'EcsBuildProject', {
-            buildSpec: codebuild.BuildSpec.fromSourceFilename('src/BuildSpec.yml'),
+            buildSpec: codebuild.BuildSpec.fromSourceFilename('src/buildspec.yml'),
             environment: {
                 buildImage: LinuxBuildImage.STANDARD_3_0,
                 computeType: codebuild.ComputeType.MEDIUM,
@@ -46,10 +47,25 @@ export class PipelineStack extends cdk.Stack {
                     IMAGE_REPO_NAME: {
                         value: 'webapp',
                     },
+                    AWS_ACCOUNT_ID:{
+                        value: this.account,
+                    },
 
                 },
             }
         });
+
+        //Adding ECR permissions to CodeBuild service role
+        buildProject.addToRolePolicy(new iam.PolicyStatement({
+            actions: [
+                "ecs:DescribeClusters",
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:BatchGetImage",
+                "ecr:GetDownloadUrlForLayer"
+                ],
+              resources: ['*'],
+        }));
 
         const buildAction = new codepipeline_actions.CodeBuildAction({
             actionName: 'CodeBuild',
