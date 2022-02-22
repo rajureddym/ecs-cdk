@@ -62,7 +62,11 @@ export class PipelineStack extends cdk.Stack {
                 "ecr:GetAuthorizationToken",
                 "ecr:BatchCheckLayerAvailability",
                 "ecr:BatchGetImage",
-                "ecr:GetDownloadUrlForLayer"
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:PutImage",
+                "ecr:CompleteLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:InitiateLayerUpload",
                 ],
               resources: ['*'],
         }));
