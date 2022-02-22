@@ -7,6 +7,7 @@ import { Construct } from 'constructs';
 import { SecurityGroup, Vpc } from 'aws-cdk-lib/aws-ec2';
 import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
+import * as iam from 'aws-cdk-lib/aws-iam';
 
 
 export class EcsClusterStack extends cdk.Stack {
@@ -96,6 +97,20 @@ export class EcsClusterStack extends cdk.Stack {
 
         ecsCluster.addAsgCapacityProvider(clusterCapacityProviders);
 
+        //Create Task Execution role policy 
+        const executionRolePolicy =  new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            resources: ['*'],
+            actions: [
+                      "ecr:GetAuthorizationToken",
+                      "ecr:BatchCheckLayerAvailability",
+                      "ecr:GetDownloadUrlForLayer",
+                      "ecr:BatchGetImage",
+                      "logs:CreateLogStream",
+                      "logs:PutLogEvents"
+                  ]
+          });
+
         // Create Task Definition
         const taskDef = new ecs.TaskDefinition(this, 'WebServerTaskDef', {
             cpu: '256',
@@ -103,16 +118,21 @@ export class EcsClusterStack extends cdk.Stack {
             compatibility: ecs.Compatibility.EC2
         });
 
+        // Add execution role policy to Task Execution Role
+        taskDef.addToExecutionRolePolicy(executionRolePolicy);
+
+        // Add container to TaskDefinition created above
         const webContainer = taskDef.addContainer('web', {
             image: ecs.ContainerImage.fromRegistry('nginx:latest'),
             memoryLimitMiB: 512
         });
 
+        // Add portmappings to above created container
         webContainer.addPortMappings({
             containerPort: 80,
             protocol: ecs.Protocol.TCP
         });
-
+        
         // create ECS Service
         const ecsService = new ecs.Ec2Service(this, 'WebServerService', {
             cluster: ecsCluster,
