@@ -6,21 +6,35 @@ import * as ecs_patterns from "aws-cdk-lib/aws-ecs-patterns";
 import { Construct } from 'constructs';
 import { SecurityGroup, Vpc } from 'aws-cdk-lib/aws-ec2';
 import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
-import { E2BIG } from 'constants';
+import * as ecr from 'aws-cdk-lib/aws-ecr';
 
 
 export class EcsClusterStack extends cdk.Stack {
+    //public readonly ecsService: ecs.BaseService;
+    //public readonly ecsCluster: ecs.ICluster;
+    
     constructor(scope: Construct, id: string, props: any) {
         super(scope, id, props);
 
         // getting existing VPC Id to create resources in it 
         const myvpc = Vpc.fromLookup(this, 'DevVpc', { isDefault: false, vpcName: 'dev-Vpc' });
 
+        // Create ECR repository
+        const ecrRepo = new ecr.Repository(this, 'WebAppEcrRepo', {
+            repositoryName: 'webapp',
+            imageScanOnPush: true,
+            imageTagMutability: ecr.TagMutability.IMMUTABLE,
+        });
+
+        console.log(ecrRepo.repositoryName);
+
+
         // Create ECS Cluster
         const ecsCluster = new ecs.Cluster(this, 'EcsCluster', {
             vpc: myvpc,
-            clusterName: 'labCluster',
+            clusterName: 'dev-webapp',
             enableFargateCapacityProviders: true,
+            containerInsights: true,
         });
 
         // SecurityGroup to attach to Loadbalancer
@@ -66,7 +80,7 @@ export class EcsClusterStack extends cdk.Stack {
 
 
         // Create EC2 AutoScalingGroup to provide infrastructure to run ECS Tasks
-        const ecsAsg = new autoscaling.AutoScalingGroup(this, 'ecsAsgLT', {
+        const ecsAsg = new autoscaling.AutoScalingGroup(this, 'ecsAsgLC', {
             instanceType: new ec2.InstanceType('t3.micro'),
             vpc: myvpc,
             machineImage: ecs.EcsOptimizedImage.amazonLinux2(),
@@ -75,7 +89,7 @@ export class EcsClusterStack extends cdk.Stack {
             securityGroup: ecsEc2SecurityGroup
         });
 
-        const clusterCapacityProviders = new ecs.AsgCapacityProvider(this, 'AsgCP', {
+        const clusterCapacityProviders = new ecs.AsgCapacityProvider(this, 'AsgCapacityProvider', {
             autoScalingGroup: ecsAsg
 
         });
@@ -109,6 +123,8 @@ export class EcsClusterStack extends cdk.Stack {
                 weight: 1
             }]
         });
+
+        console.log(ecsService.serviceArn);
 
         // Add ecs service tasks to load balancer as targets
         const targateGroup = listener.addTargets('EcsTG', {
