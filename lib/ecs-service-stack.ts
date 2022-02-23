@@ -13,7 +13,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 export class EcsClusterStack extends cdk.Stack {
     //public readonly ecsService: ecs.BaseService;
     //public readonly ecsCluster: ecs.ICluster;
-    
+
     constructor(scope: Construct, id: string, props: any) {
         super(scope, id, props);
 
@@ -27,9 +27,6 @@ export class EcsClusterStack extends cdk.Stack {
             imageTagMutability: ecr.TagMutability.IMMUTABLE,
         });
 
-        console.log(ecrRepo.repositoryName);
-
-
         // Create ECS Cluster
         const ecsCluster = new ecs.Cluster(this, 'EcsCluster', {
             vpc: myvpc,
@@ -38,7 +35,7 @@ export class EcsClusterStack extends cdk.Stack {
             containerInsights: true,
         });
 
-        // SecurityGroup to attach to Loadbalancer
+        // Define SecurityGroup & it's Ingress rules to attach to Loadbalancer
         const ecsAlbSecurityGroup = new ec2.SecurityGroup(this, 'EcsAlbSG', {
             vpc: myvpc,
             allowAllOutbound: true,
@@ -59,7 +56,7 @@ export class EcsClusterStack extends cdk.Stack {
         });
 
         // Allowing Inbound to ECS EC2 Instances from ALB
-         ecsEc2SecurityGroup.connections.allowFrom( 
+        ecsEc2SecurityGroup.connections.allowFrom(
             new ec2.Connections({
                 securityGroups: [ecsAlbSecurityGroup]
             }),
@@ -90,32 +87,34 @@ export class EcsClusterStack extends cdk.Stack {
             securityGroup: ecsEc2SecurityGroup
         });
 
+        // Define ECS CapacityProvider based off ASG
         const clusterCapacityProviders = new ecs.AsgCapacityProvider(this, 'AsgCapacityProvider', {
             autoScalingGroup: ecsAsg
 
         });
 
+        //Add or associate defined ECS CP to Cluster
         ecsCluster.addAsgCapacityProvider(clusterCapacityProviders);
 
         //Create Task Execution role policy 
-        const executionRolePolicy =  new iam.PolicyStatement({
+        const executionRolePolicy = new iam.PolicyStatement({
             effect: iam.Effect.ALLOW,
             resources: ['*'],
             actions: [
-                      "ecr:GetAuthorizationToken",
-                      "ecr:BatchCheckLayerAvailability",
-                      "ecr:GetDownloadUrlForLayer",
-                      "ecr:BatchGetImage",
-                      "logs:CreateLogStream",
-                      "logs:PutLogEvents"
-                  ]
-          });
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ]
+        });
 
         // Create Task Definition
         const taskDef = new ecs.TaskDefinition(this, 'WebServerTaskDef', {
             cpu: '256',
             memoryMiB: '512',
-            compatibility: ecs.Compatibility.EC2
+            compatibility: ecs.Compatibility.EC2,
         });
 
         // Add execution role policy to Task Execution Role
@@ -124,7 +123,10 @@ export class EcsClusterStack extends cdk.Stack {
         // Add container to TaskDefinition created above
         const webContainer = taskDef.addContainer('web', {
             image: ecs.ContainerImage.fromRegistry('nginx:latest'),
-            memoryLimitMiB: 512
+            memoryLimitMiB: 512,
+            logging: ecs.LogDriver.awsLogs({
+                streamPrefix: 'webapp',
+            })
         });
 
         // Add portmappings to above created container
@@ -132,26 +134,46 @@ export class EcsClusterStack extends cdk.Stack {
             containerPort: 80,
             protocol: ecs.Protocol.TCP
         });
-        
+
         // create ECS Service
         const ecsService = new ecs.Ec2Service(this, 'WebServerService', {
             cluster: ecsCluster,
             taskDefinition: taskDef,
             circuitBreaker: { rollback: true },
+            minHealthyPercent: 100,
+            maxHealthyPercent: 200,
             capacityProviderStrategies: [{
                 capacityProvider: clusterCapacityProviders.capacityProviderName,
                 weight: 1
             }]
         });
 
-        console.log(ecsService.serviceArn);
-
         // Add ecs service tasks to load balancer as targets
         const targateGroup = listener.addTargets('EcsTG', {
             port: 80,
             targets: [ecsService]
-        })
+        });
 
+        //Define ECS Service AutoScaling 
+        const ecsServiceAutoscale = ecsService.autoScaleTaskCount({
+            minCapacity: 1,
+            maxCapacity: 20
+        });
+
+        ecsServiceAutoscale.scaleOnCpuUtilization('CpuScaling', {
+            targetUtilizationPercent: 75,
+        });
+        ecsServiceAutoscale.scaleOnRequestCount('AlbRequestCount', {
+            requestsPerTarget: 1000,
+            targetGroup: targateGroup,
+        });
+
+
+        // define ECS Service task placement strategy
+        ecsService.addPlacementStrategies(
+            ecs.PlacementStrategy.packedBy(ecs.BinPackResource.MEMORY),
+            ecs.PlacementStrategy.spreadAcross(ecs.BuiltInAttributes.AVAILABILITY_ZONE)
+        );
 
     }
 }

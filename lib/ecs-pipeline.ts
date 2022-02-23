@@ -4,10 +4,12 @@ import * as codepipeline_actions from 'aws-cdk-lib/aws-codepipeline-actions';
 import { Construct } from 'constructs';
 import * as cdk from 'aws-cdk-lib';
 import { SecretValue, StackProps } from 'aws-cdk-lib';
-import * as  EcsClusterStack from '../lib/ecs-service-stack';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { BuildSpec, ImagePullPrincipalType, LinuxBuildImage } from 'aws-cdk-lib/aws-codebuild';
+import { SubnetType, Vpc } from 'aws-cdk-lib/aws-ec2';
+import { LogStream } from 'aws-cdk-lib/aws-logs';
 
 // export interface EcsPipelineStackProps extends cdk.StackProps {
 //     ecsService: ecs.BaseService;
@@ -21,8 +23,12 @@ export class PipelineStack extends cdk.Stack {
         super(scope, id, props);
 
         //const service = props.ecsService;
-        const service = ecs.BaseService.fromServiceArnWithCluster(this, 'EcsService', 'arn:aws:ecs:us-east-1:803314449489:service/dev-webapp/dev-webapp-ecs-WebServerServiceCD094CAD-5EUoq9cZVn8C')
+        const service = ecs.BaseService.fromServiceArnWithCluster(this, 'EcsService', 'arn:aws:ecs:us-east-1:803314449489:service/dev-webapp/dev-webapp-ecs-WebServerServiceCD094CAD-5EUoq9cZVn8C');
 
+        // getting existing VPC Id to create resources in it 
+        const myvpc = Vpc.fromLookup(this, 'DevVpc', { isDefault: false, vpcName: 'dev-Vpc' });
+        
+        //Define pipeline artifacts
         const sourceOutput = new codepipeline.Artifact();
         const buildOutput = new codepipeline.Artifact('buildOut');
 
@@ -36,23 +42,40 @@ export class PipelineStack extends cdk.Stack {
             branch: 'master'
         });
 
-        // Define Build stage and it's actions
+        // Define Build project and it's actions
         const buildProject = new codebuild.PipelineProject(this, 'EcsBuildProject', {
             buildSpec: codebuild.BuildSpec.fromSourceFilename('src/buildspec.yml'),
             environment: {
                 buildImage: LinuxBuildImage.STANDARD_3_0,
-                computeType: codebuild.ComputeType.MEDIUM,
+                computeType: codebuild.ComputeType.SMALL,
                 privileged: true,
                 environmentVariables: {
                     IMAGE_REPO_NAME: {
                         value: 'webapp',
                     },
-                    AWS_ACCOUNT_ID:{
+                    AWS_ACCOUNT_ID: {
                         value: this.account,
                     },
 
                 },
-            }
+            },
+            vpc: myvpc,
+            subnetSelection:{
+                subnetType: SubnetType.PRIVATE_WITH_NAT
+            },
+            logging: {
+                cloudWatch: {
+                    logGroup:  new logs.LogGroup(this, 'WebappBuildLogs')
+                },
+            },
+        });
+
+        // Build actions
+        const buildAction = new codepipeline_actions.CodeBuildAction({
+            actionName: 'CodeBuild',
+            project: buildProject,
+            input: sourceOutput,
+            outputs: [buildOutput],
         });
 
         //Adding ECR permissions to CodeBuild service role
@@ -67,16 +90,9 @@ export class PipelineStack extends cdk.Stack {
                 "ecr:CompleteLayerUpload",
                 "ecr:UploadLayerPart",
                 "ecr:InitiateLayerUpload",
-                ],
-              resources: ['*'],
+            ],
+            resources: ['*'],
         }));
-
-        const buildAction = new codepipeline_actions.CodeBuildAction({
-            actionName: 'CodeBuild',
-            project: buildProject,
-            input: sourceOutput,
-            outputs: [buildOutput],
-        });
 
         // Define Deploy stage and it's actions
         const deployAction = new codepipeline_actions.EcsDeployAction({
