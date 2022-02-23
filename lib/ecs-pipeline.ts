@@ -23,7 +23,7 @@ export class PipelineStack extends cdk.Stack {
         super(scope, id, props);
 
         //const service = props.ecsService;
-        const service = ecs.BaseService.fromServiceArnWithCluster(this, 'EcsService', 'arn:aws:ecs:us-east-1:803314449489:service/dev-webapp/dev-webapp-ecs-WebServerServiceCD094CAD-5EUoq9cZVn8C');
+        const service = ecs.BaseService.fromServiceArnWithCluster(this, 'EcsService', 'arn:aws:ecs:us-east-1:803314449489:service/dev-webapp/dev-webapp-ecs-WebServerServiceCD094CAD-0ULJ1cqDA07V');
 
         // getting existing VPC Id to create resources in it 
         const myvpc = Vpc.fromLookup(this, 'DevVpc', { isDefault: false, vpcName: 'dev-Vpc' });
