@@ -13,3 +13,7 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app.
  * `cdk deploy`      deploy this stack to your default AWS account/region
  * `cdk diff`        compare deployed stack with current state
  * `cdk synth`       emits the synthesized CloudFormation template
+
+
+
+### Demonstration of Infrastructure creation (Network VPC, CICD Pipeline and ECS Service resources) using AWS CDK (Typescript) & sample web application deployment to AWS Elastic Container Service (ECS) 
